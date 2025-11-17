@@ -20,11 +20,17 @@ export class AudioEngine {
 
       // Create master gain node for volume control
       this.masterGain = this.audioContext.createGain();
-      this.masterGain.gain.value = 0.5; // Set volume to 50%
-      this.masterGain.connect(this.audioContext.destination);
+      this.masterGain.gain.value = 0.5;
+      
+      // ADD THIS: Create reverb
+      this.reverb = this.createReverb();
+      
+      // CHANGE THIS: Connect master -> reverb -> destination
+      this.masterGain.connect(this.reverb.input);
+      this.reverb.connect(this.audioContext.destination);
 
       // Load the harp sample
-      await this.loadSample('/sounds/Harp-C4_r.mp3');
+      await this.loadSample('/sounds/Harp-C4.mp3');
 
       this.isInitialized = true;
       console.log('AudioEngine initialized successfully');
@@ -32,6 +38,66 @@ export class AudioEngine {
       console.error('Failed to initialize AudioEngine:', error);
       throw error;
     }
+  }
+
+  createReverb() {
+    // Create a simple reverb using multiple delay lines
+    const reverbGain = this.audioContext.createGain();
+    reverbGain.gain.value = 0.3; // Wet/dry mix (30% reverb)
+    
+    const delays = [];
+    const gains = [];
+    
+    // Create 4 delay lines with different times for a richer reverb
+    const delayTimes = [0.023, 0.037, 0.053, 0.067]; // Prime numbers for less metallic sound
+    const feedbackAmount = 0.5; // How much the delays feed back
+    
+    delayTimes.forEach((time, i) => {
+      const delay = this.audioContext.createDelay();
+      delay.delayTime.value = time;
+      
+      const gain = this.audioContext.createGain();
+      gain.gain.value = 0.7 / delayTimes.length; // Divide to prevent buildup
+      
+      const feedback = this.audioContext.createGain();
+      feedback.gain.value = feedbackAmount;
+      
+      // Create feedback loop: input -> delay -> gain -> output
+      //                                 ↑          ↓
+      //                                 ← feedback ←
+      delay.connect(gain);
+      gain.connect(feedback);
+      feedback.connect(delay);
+      
+      delays.push(delay);
+      gains.push(gain);
+    });
+    
+    // Create input splitter and output mixer
+    const dryGain = this.audioContext.createGain();
+    dryGain.gain.value = 0.7; // Dry signal level
+    
+    const wetGain = this.audioContext.createGain();
+    wetGain.gain.value = 0.3; // Wet signal level
+    
+    const input = this.audioContext.createGain();
+    const output = this.audioContext.createGain();
+    
+    // Connect dry path
+    input.connect(dryGain);
+    dryGain.connect(output);
+    
+    // Connect wet paths
+    delays.forEach((delay, i) => {
+      input.connect(delays[i]);
+      gains[i].connect(wetGain);
+    });
+    wetGain.connect(output);
+    
+    // Store reference to input node for connection
+    output.input = input;
+    
+    return output;
   }
 
   async loadSample(url) {
