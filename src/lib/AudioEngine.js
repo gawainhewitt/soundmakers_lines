@@ -88,10 +88,10 @@ export class AudioEngine {
   }
 
   // Cleanup for orphaned notes (simplified since Tone.js handles this better)
-  cleanupOrphanedOscillators(squareStates = {}) {
+  cleanupOrphanedOscillators(lineStates = {}) {
     // Check for notes that are marked as active but shouldn't be
     this.activeNotes.forEach(note => {
-      if (!squareStates[note]) {
+      if (!lineStates[note]) {
         console.warn('Cleaning up orphaned note:', note);
         this.stopNote(note);
       }

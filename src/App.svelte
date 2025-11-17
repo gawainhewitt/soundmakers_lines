@@ -121,14 +121,14 @@
 
 {#if currentScreen === 'splash'}
   <SplashScreen 
-    title="Squares"
+    title="Lines"
     instructions="To play: touch or click screen or use ZXCVBNM,. keys on a keyboard"
     footerNote="On Apple devices, turn off silent mode"
     on:click={handleSplashClick}
   />
 {:else if currentScreen === 'about'}
   <SplashScreen 
-    title="Squares"
+    title="Lines"
     instructions="To play: touch or click screen or use ZXCVBNM,. keys on a keyboard"
     footerNote="On Apple devices, turn off silent mode"
     on:click={handleAboutClose}

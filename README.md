@@ -1,6 +1,6 @@
-# Squares - Musical Touch Interface
+# Lines - Musical Touch Interface
 
-A responsive web-based musical instrument that transforms your screen into a playable 3x3 grid of squares. Each square plays a note from a configurable musical scale, creating an intuitive and accessible way to make music through touch, mouse, or keyboard.
+A responsive web-based musical instrument that transforms your screen into a playable 3x3 grid of lines. Each line plays a note from a configurable musical scale, creating an intuitive and accessible way to make music through touch, mouse, or keyboard.
 
 ## Features
 
@@ -22,14 +22,14 @@ A responsive web-based musical instrument that transforms your screen into a pla
 ![Splash Screen](docs/images/splash-screen.png)
 
 ### 2. **Play**: 
-   - Touch or click the squares to play notes
-   - Use keyboard keys (Z-X-C-V-B-N-M-,- .) for the 9 squares
+   - Touch or click the lines to play notes
+   - Use keyboard keys (Z-X-C-V-B-N-M-,- .) for the 9 lines
    - Press 'P' key for panic stop (stops all notes)
 
 ![App Screenshot](docs/images/app-screenshot.png)
 
 ![Keyboard Layout](docs/images/keyboard-layout.png)
-*Keyboard mapping for the 9 squares*
+*Keyboard mapping for the 9 lines*
 
 3. **Configure**: 
    - Tap the settings icon (⚙️) to change key, scale, or octave
@@ -41,7 +41,7 @@ A responsive web-based musical instrument that transforms your screen into a pla
 
 ## How It Works
 
-The app uses the Web Audio API to play recorded sounds in real-time. Each square in the grid corresponds to a note in your selected scale, arranged from low to high (left to right, top to bottom).
+The app uses the Web Audio API to play recorded sounds in real-time. Each line in the grid corresponds to a note in your selected scale, arranged from low to high (left to right, top to bottom).
 
 **Audio Engine**: Employs a sampler to play recordings of a french horn
 
@@ -56,8 +56,8 @@ The app uses the Web Audio API to play recorded sounds in real-time. Each square
 
 ```bash
 # Clone the repository
-git clone https://github.com/gawainhewitt/soundmakers_squares.git
-cd squares
+git clone https://github.com/gawainhewitt/soundmakers_lines.git
+cd lines
 
 # Install dependencies
 npm install
@@ -115,7 +115,7 @@ This app has been carefully optimized for iOS 9+ devices:
 │   ├── app.css                 # Global styles
 │   └── lib/
 │       ├── AudioEngine.js      # Web Audio API sound generation
-│       ├── Square.svelte       # Individual playable square
+│       ├── Line.svelte       # Individual playable line
 │       ├── GridContainer.svelte # 3x3 grid layout & event handling
 │       ├── OptionsScreen.svelte # Settings interface
 │       ├── ScaleGenerator.js   # Musical scale generation logic
@@ -139,7 +139,7 @@ graph TD
     
     D --> G[AudioEngine.js<br/>Web Audio Synthesis]
     D --> H[ScaleGenerator.js<br/>Musical Scale Logic]
-    D --> F[Square.svelte ×9<br/>Interactive Note Buttons]
+    D --> F[Line.svelte ×9<br/>Interactive Note Buttons]
 
     
     C --> H
