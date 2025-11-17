@@ -33,7 +33,7 @@
     
     // Play the sound
     if (audioEngine) {
-      audioEngine.playNote(note);
+      audioEngine.playNote(note, stringId);
     }
     
     dispatch('trigger', { index, stringId, note });

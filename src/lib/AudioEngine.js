@@ -1,109 +1,192 @@
-import * as Tone from 'tone';
-
 export class AudioEngine {
   constructor() {
-    this.sampler = null;
-    this.reverb = null;
-    this.initialized = false;
-    this.activeNotes = new Set(); // Track currently playing notes
+    this.audioContext = null;
+    this.audioBuffer = null;
+    this.activeNotes = new Map(); // Track playing notes with their source nodes
+    this.isInitialized = false;
+    this.masterGain = null;
   }
 
-  // Initialize audio context (must be called after user interaction on iOS)
   async init() {
-    if (this.initialized) return;
-    
-    try {
-      // Start Tone.js audio context
-      await Tone.start();
-      console.log('Tone.js started, audio context state:', Tone.context.state);
-      
-      // Create sampler with harp samples
-      this.sampler = new Tone.Sampler({
-        urls: {
-          C4: "Harp-C4.mp3"
-        },
-        baseUrl: "/sounds/",
-        release: 8,
-        volume: -6,
-        onload: () => {
-          console.log('Sampler loaded successfully');
-        }
-      }).toDestination();
-
-      // this.reverb = new Tone.Reverb({
-      //   decay: 3,
-      //   predelay: 0,
-      //   wet: 0.5
-      // }).toDestination();
-
-      // this.sampler.connect(this.reverb);
-      
-      this.initialized = true;
-      console.log('AudioEngine initialized with Tone.js');
-      
-    } catch (error) {
-      console.error('Failed to initialize audio:', error);
-    }
-  }
-
-  playNote(note) {
-    if (!this.sampler || !this.initialized) {
-      console.warn('Sampler not ready');
+    if (this.isInitialized) {
+      console.log('AudioEngine already initialized');
       return;
     }
-    
-    // Stop existing note first (important for retriggering)
-    this.stopNote(note);
-    
-    // Play the note with Tone.js (duration set to 8 seconds, will be stopped earlier if needed)
-    this.sampler.triggerAttack(note, Tone.now());
-    this.activeNotes.add(note);
-    
-    console.log('Playing note:', note);
-  }
 
-  stopNote(note) {
-    if (!this.sampler || !this.initialized) return;
-    
-    if (this.activeNotes.has(note)) {
-      // Release the note (will respect the 8-second release time)
-      this.sampler.triggerRelease(note, Tone.now());
-      this.activeNotes.delete(note);
-      
-      console.log('Stopping note:', note);
+    try {
+      // Create AudioContext
+      this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      console.log('AudioContext created, state:', this.audioContext.state);
+
+      // Create master gain node for volume control
+      this.masterGain = this.audioContext.createGain();
+      this.masterGain.gain.value = 0.5; // Set volume to 50%
+      this.masterGain.connect(this.audioContext.destination);
+
+      // Load the harp sample
+      await this.loadSample('/sounds/Harp-C4_r.mp3');
+
+      this.isInitialized = true;
+      console.log('AudioEngine initialized successfully');
+    } catch (error) {
+      console.error('Failed to initialize AudioEngine:', error);
+      throw error;
     }
   }
 
-  // Emergency stop all notes
-  panic() {
-    console.log('PANIC: Stopping all notes');
-    
-    if (this.sampler && this.initialized) {
-      // Release all currently active notes
-      this.activeNotes.forEach(note => {
-        this.sampler.triggerRelease(note, Tone.now());
+  async loadSample(url) {
+    try {
+      console.log('Loading sample from:', url);
+      const response = await fetch(url);
+      const arrayBuffer = await response.arrayBuffer();
+      
+      // iOS 12 Safari uses callback-based decodeAudioData, not promise-based
+      this.audioBuffer = await new Promise((resolve, reject) => {
+        this.audioContext.decodeAudioData(
+          arrayBuffer,
+          (decodedBuffer) => {
+            resolve(decodedBuffer);
+          },
+          (error) => {
+            reject(error);
+          }
+        );
       });
       
-      // Alternative: force stop everything immediately
-      this.sampler.releaseAll(Tone.now());
-      
-      this.activeNotes.clear();
+      console.log('Sample loaded successfully, duration:', this.audioBuffer.duration);
+    } catch (error) {
+      console.error('Failed to load sample:', error);
+      throw error;
     }
   }
 
-  // Cleanup for orphaned notes (simplified since Tone.js handles this better)
-  cleanupOrphanedOscillators(lineStates = {}) {
-    // Check for notes that are marked as active but shouldn't be
-    this.activeNotes.forEach(note => {
-      if (!lineStates[note]) {
-        console.warn('Cleaning up orphaned note:', note);
-        this.stopNote(note);
-      }
-    });
+  // Convert note name to frequency
+  noteToFrequency(note) {
+    const noteMap = {
+      'C': 0, 'C#': 1, 'Db': 1, 'D': 2, 'D#': 3, 'Eb': 3,
+      'E': 4, 'F': 5, 'F#': 6, 'Gb': 6, 'G': 7, 'G#': 8,
+      'Ab': 8, 'A': 9, 'A#': 10, 'Bb': 10, 'B': 11
+    };
+
+    // Parse note (e.g., "C4", "F#5")
+    const match = note.match(/^([A-G][#b]?)(\d+)$/);
+    if (!match) {
+      console.error('Invalid note format:', note);
+      return 261.63; // Default to C4
+    }
+
+    const noteName = match[1];
+    const octave = parseInt(match[2]);
+
+    // Calculate MIDI note number
+    const noteNumber = noteMap[noteName];
+    const midiNote = (octave + 1) * 12 + noteNumber;
+
+    // Convert MIDI to frequency: f = 440 * 2^((n-69)/12)
+    const frequency = 440 * Math.pow(2, (midiNote - 69) / 12);
+    return frequency;
   }
 
-  // Force stop all (for compatibility)
-  forceStopAllOscillators() {
-    this.panic();
+  // Calculate playback rate to pitch-shift from C4 to target note
+  getPlaybackRate(targetNote) {
+    const c4Frequency = 261.63; // C4 frequency
+    const targetFrequency = this.noteToFrequency(targetNote);
+    return targetFrequency / c4Frequency;
+  }
+
+  playNote(note, stringId = null) {
+    if (!this.isInitialized || !this.audioBuffer) {
+      console.warn('AudioEngine not initialized or sample not loaded');
+      return;
+    }
+
+    if (this.audioContext.state === 'suspended') {
+      this.audioContext.resume();
+    }
+
+    const key = stringId || note;
+
+    // CHANGED: Instead of stopping, check how many instances are playing
+    // Allow up to 3 simultaneous instances per string
+    const existingInstances = Array.from(this.activeNotes.entries())
+      .filter(([k, v]) => k.startsWith(key + '_'));
+    
+    if (existingInstances.length >= 3) {
+      // Remove the oldest instance with a gentle fade
+      const [oldestKey, oldestData] = existingInstances[0];
+      const now = this.audioContext.currentTime;
+      try {
+        oldestData.gainNode.gain.setValueAtTime(oldestData.gainNode.gain.value, now);
+        oldestData.gainNode.gain.linearRampToValueAtTime(0, now + 0.2); // Gentler 200ms fade
+        oldestData.source.stop(now + 0.2);
+      } catch (e) {
+        // Already stopped
+      }
+      this.activeNotes.delete(oldestKey);
+    }
+
+    try {
+      const source = this.audioContext.createBufferSource();
+      source.buffer = this.audioBuffer;
+
+      const playbackRate = this.getPlaybackRate(note);
+      source.playbackRate.value = playbackRate;
+
+      const gainNode = this.audioContext.createGain();
+      gainNode.gain.value = 1.0;
+
+      source.connect(gainNode);
+      gainNode.connect(this.masterGain);
+
+      source.start(0);
+
+      // CHANGED: Store with timestamp to track multiple instances
+      const instanceKey = key + '_' + Date.now();
+      this.activeNotes.set(instanceKey, { source, gainNode, startTime: Date.now() });
+
+      source.onended = () => {
+        this.activeNotes.delete(instanceKey);
+      };
+
+      console.log('Playing note:', note, 'at playback rate:', playbackRate.toFixed(3));
+    } catch (error) {
+      console.error('Error playing note:', note, error);
+    }
+  }
+
+  stopNote(note, stringId = null) {
+    const key = stringId || note;
+    const noteData = this.activeNotes.get(key);
+    if (noteData) {
+      const { source, gainNode } = noteData;
+      const now = this.audioContext.currentTime;
+      gainNode.gain.setValueAtTime(gainNode.gain.value, now);
+      gainNode.gain.linearRampToValueAtTime(0, now + 0.05);
+      source.stop(now + 0.05);
+      this.activeNotes.delete(key);
+    }
+  }
+
+  panic() {
+    // Stop all currently playing notes
+    console.log('Panic: stopping all notes');
+    this.activeNotes.forEach((noteData, note) => {
+      try {
+        noteData.source.stop();
+      } catch (e) {
+        // Source might already be stopped
+      }
+    });
+    this.activeNotes.clear();
+  }
+
+  // Legacy method for compatibility (not needed in Web Audio API implementation)
+  cleanupOrphanedOscillators() {
+    // No-op - Web Audio handles cleanup automatically
+  }
+
+  get activeOscillators() {
+    // For compatibility with existing code that checks this
+    return this.activeNotes;
   }
 }

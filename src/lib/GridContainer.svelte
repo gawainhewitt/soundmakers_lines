@@ -109,7 +109,7 @@ function handleKeydown(e) {
       var note = scales[rowIndex][stringInRow];
       
       if (audioEngine && note) {
-        audioEngine.playNote(note);
+        audioEngine.playNote(not, stringId);
         console.log('Key pressed:', key, '→', note);
         
         // ADD THESE LINES - trigger animation:
