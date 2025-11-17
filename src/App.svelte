@@ -10,33 +10,11 @@
   let currentScreen = 'splash'; // 'splash', 'play', 'about', 'options'
   let audioEngine = null;
   let audioInitialized = false;
-  
-  // Scale configuration (defaults)
-  let scaleConfig = {
-    key: 'C',
-    scale: 'major',
-    octave: 4
-  };
 
   onMount(() => {
     // Create audio engine immediately (but don't initialize yet)
     audioEngine = new AudioEngine();
-    
-    // Load saved scale preferences
-    loadScalePreferences();
   });
-  
-  function loadScalePreferences() {
-    var savedKey = localStorage.getItem('soundmakers-key');
-    var savedScale = localStorage.getItem('soundmakers-scale');
-    var savedOctave = localStorage.getItem('soundmakers-octave');
-    
-    if (savedKey) scaleConfig.key = savedKey;
-    if (savedScale) scaleConfig.scale = savedScale;
-    if (savedOctave) scaleConfig.octave = parseInt(savedOctave);
-    
-    console.log('Loaded scale preferences:', scaleConfig);
-  }
 
   async function handleSplashClick() {
   document.body.style.setProperty('background-color', 'rgb(86, 180, 233)', 'important');
@@ -96,19 +74,10 @@
     }, 100);
   }
 
-  function handleOptionsSave(event) {
-  // Update scale configuration with new selections
-    if (event.detail) {
-      scaleConfig = {
-        key: event.detail.key,
-        scale: event.detail.scale,
-        octave: event.detail.octave
-      };
-      console.log('Scale config updated:', scaleConfig);
-    }
-    
+  function closeOptions() {
     document.body.style.setProperty('background-color', 'rgb(86, 180, 233)', 'important');
     currentScreen = 'play';
+    
     // CHROME iOS FIX: Wait for layout to settle after transition
     setTimeout(() => {
       window.scrollTo(0, 0);
@@ -122,7 +91,7 @@
 {#if currentScreen === 'splash'}
   <SplashScreen 
     title="Lines"
-    instructions="To play: touch or click screen or use ZXCVBNM,. keys on a keyboard"
+    instructions="To play: touch or click screen or use keyboard keys"
     footerNote="On Apple devices, turn off silent mode"
     on:click={handleSplashClick}
   />
@@ -134,7 +103,7 @@
     on:click={handleAboutClose}
   />
 {:else if currentScreen === 'options'}
-  <OptionsScreen on:save={handleOptionsSave} />
+  <OptionsScreen on:close={closeOptions} />
 {:else if currentScreen === 'play'}
   <!-- Icon buttons positioned in top corners -->
   <div style="position: fixed; top: 20px; left: 20px; z-index: 1000;">
@@ -155,7 +124,7 @@
 
   <main>
     <ResponsiveContainer>
-      <GridContainer {audioEngine} {scaleConfig} />
+      <GridContainer {audioEngine} />
     </ResponsiveContainer>
   </main>
 {/if}

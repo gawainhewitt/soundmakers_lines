@@ -1,29 +1,9 @@
 <script>
   import { createEventDispatcher, onMount, onDestroy } from 'svelte';
-  import { ScaleGenerator } from './ScaleGenerator.js';
   
   const dispatch = createEventDispatcher();
   
-  // Get available options
-  const availableKeys = ScaleGenerator.getAllKeys();
-  const availableScales = ScaleGenerator.getAllScaleTypes();
-  const availableOctaves = ScaleGenerator.getAllOctaves();
-  
-  // Current selections (load from localStorage or use defaults)
-  let selectedKey = 'C';
-  let selectedScale = 'major';
-  let selectedOctave = 4;
-  
-  // Load saved preferences on mount
   onMount(() => {
-    var savedKey = localStorage.getItem('soundmakers-key');
-    var savedScale = localStorage.getItem('soundmakers-scale');
-    var savedOctave = localStorage.getItem('soundmakers-octave');
-    
-    if (savedKey) selectedKey = savedKey;
-    if (savedScale) selectedScale = savedScale;
-    if (savedOctave) selectedOctave = parseInt(savedOctave);
-    
     window.addEventListener('keydown', handleKeydown);
   });
   
@@ -31,95 +11,29 @@
     window.removeEventListener('keydown', handleKeydown);
   });
   
-  function handleSave() {
-    // Save to localStorage
-    localStorage.setItem('soundmakers-key', selectedKey);
-    localStorage.setItem('soundmakers-scale', selectedScale);
-    localStorage.setItem('soundmakers-octave', selectedOctave.toString());
-    
-    // Dispatch save event with the selections
-    dispatch('save', {
-      key: selectedKey,
-      scale: selectedScale,
-      octave: selectedOctave
-    });
+  function handleClose() {
+    dispatch('close');
   }
   
   function handleKeydown(e) {
-    // Save on Enter or Escape
-    if (e.key === 'Enter' || e.key === 'Escape') {
-      handleSave();
+    if (e.key === 'Escape') {
+      handleClose();
     }
-  }
-  
-  function selectKey(key) {
-    selectedKey = key;
-  }
-  
-  function selectScale(scale) {
-    selectedScale = scale;
-  }
-  
-  function selectOctave(octave) {
-    selectedOctave = octave;
   }
 </script>
 
 <div class="options-screen">
   <div class="content">
-  <h1>Options</h1>
-  
-  <div class="options-wrapper">
-    <!-- Key Selection -->
-    <div class="option-section">
-      <h2>Key</h2>
-      <div class="button-grid keys">
-        {#each availableKeys as key}
-          <button 
-            class="option-button {selectedKey === key ? 'selected' : ''}"
-            on:click={() => selectKey(key)}
-          >
-            {key}
-          </button>
-        {/each}
-      </div>
+    <h1>Options</h1>
+    
+    <div class="options-wrapper">
+      <p>Options coming soon...</p>
     </div>
     
-    <!-- Scale Type Selection -->
-    <div class="option-section">
-      <h2>Scale</h2>
-      <div class="button-grid scales">
-        {#each availableScales as scale}
-          <button 
-            class="option-button scale-button {selectedScale === scale ? 'selected' : ''}"
-            on:click={() => selectScale(scale)}
-          >
-            {ScaleGenerator.getScaleDisplayName(scale)}
-          </button>
-        {/each}
-      </div>
-    </div>
-    
-    <!-- Octave Selection -->
-    <div class="option-section">
-      <h2>Octave</h2>
-      <div class="button-grid octaves">
-        {#each availableOctaves as octave}
-          <button 
-            class="option-button {selectedOctave === octave ? 'selected' : ''}"
-            on:click={() => selectOctave(octave)}
-          >
-            {octave}
-          </button>
-        {/each}
-      </div>
-    </div>
+    <button class="save-button" on:click={handleClose}>
+      Close
+    </button>
   </div>
-  
-  <button class="save-button" on:click={handleSave}>
-    Save
-  </button>
-</div>
 </div>
 
 <style>

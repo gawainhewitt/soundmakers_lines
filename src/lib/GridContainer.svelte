@@ -1,22 +1,22 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
   import String from './String.svelte';
-  import { ScaleGenerator } from './ScaleGenerator.js';
+  import { ArpeggioGenerator } from './ArpeggioGenerator';
   
   export let audioEngine;
   
   let strings = Array.from({ length: 30 }, function(_, i) { return i; });
   let cleanupInterval;
-  let scaleGenerator = new ScaleGenerator();
+  let arpeggioGenerator = new ArpeggioGenerator;
 
   // Track which strings are currently animating (for keyboard)
   let animatingStrings = new Set();
   
-  // Define the three rows with their colors and scale configs
+  // Define the three rows with their colors and chord configs
   const rows = [
-    { id: 0, color: 'rgb(240, 228, 66)', key: 'G', scale: 'major', octave: 4 },   // yellow - G major
-    { id: 1, color: 'rgb(204, 121, 167)', key: 'F', scale: 'major', octave: 4 },  // pink - F major
-    { id: 2, color: 'rgb(0, 158, 115)', key: 'C', scale: 'major', octave: 4 }     // green - C major
+    { id: 0, color: 'rgb(240, 228, 66)', root: 'G', chordType: 'major', octave: 3 },   // yellow - G major
+    { id: 1, color: 'rgb(203, 121, 167)', root: 'F', chordType: 'major', octave: 3 },  // pink - F major
+    { id: 2, color: 'rgb(0, 158, 115)', root: 'C', chordType: 'major', octave: 3 }     // green - C major
   ];
   
   const stringsPerRow = 10;
@@ -25,16 +25,14 @@
   let scales = [];
   $: {
     scales = rows.map(row => {
-      // Generate scale spanning enough octaves to get 10 notes
-      var scale = scaleGenerator.generateScale(row.key, row.scale, row.octave);
-      // If we don't have enough notes, extend into next octave
-      if (scale.length < stringsPerRow) {
-        var nextOctaveScale = scaleGenerator.generateScale(row.key, row.scale, row.octave + 1);
-        scale = scale.concat(nextOctaveScale.slice(2));
-      }
-      return scale.slice(0, stringsPerRow);
+      return arpeggioGenerator.generateArpeggio(
+        row.root, 
+        row.chordType, 
+        row.octave, 
+        stringsPerRow
+      );
     });
-    console.log('Generated scales:', scales);
+    console.log('Generated arpeggios:', scales);
   }
   
   // Map keyboard keys to string indices (30 total)
