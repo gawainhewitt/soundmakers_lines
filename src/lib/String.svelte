@@ -14,9 +14,9 @@
   let element;
   let localAnimating = false;
   let hasBeenTriggeredInThisDrag = false;
-  let lastTriggerTime = 0; // ADD THIS
+  let lastTriggerTime = 0; 
   const ANIMATION_DURATION = 300;
-  const MIN_RETRIGGER_INTERVAL = 50; // Minimum ms between triggers - ADD THIS
+  const MIN_RETRIGGER_INTERVAL = 200; // Minimum ms between triggers 
   
   $: effectiveAnimating = isAnimating || localAnimating;
   
@@ -112,7 +112,7 @@
 
 <style>
   .string {
-    width: 2vw;
+    width: 3vw;
     height: 100%;
     cursor: pointer;
     user-select: none;

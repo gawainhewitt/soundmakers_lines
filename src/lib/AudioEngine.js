@@ -15,22 +15,27 @@ export class AudioEngine {
 
     try {
       // Create AudioContext
-      this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const audioContextOptions = {
+        latencyHint: 'playback', // Prioritize smooth playback over low latency
+        sampleRate: 24000 // Match your sample's rate
+      };
+
+      this.audioContext = new (window.AudioContext || window.webkitAudioContext)(audioContextOptions);
+     
       console.log('AudioContext created, state:', this.audioContext.state);
 
       // Create master gain node for volume control
       this.masterGain = this.audioContext.createGain();
-      this.masterGain.gain.value = 0.5;
+      this.masterGain.gain.value = 0.2;
       
       // ADD THIS: Create reverb
       this.reverb = this.createReverb();
       
       // CHANGE THIS: Connect master -> reverb -> destination
-      this.masterGain.connect(this.reverb.input);
-      this.reverb.connect(this.audioContext.destination);
+      this.setReverbEnabled(true);
 
       // Load the harp sample
-      await this.loadSample('/sounds/Harp-C4.mp3');
+      await this.loadSample('/sounds/Harp-C4-mono.mp3');
 
       this.isInitialized = true;
       console.log('AudioEngine initialized successfully');
@@ -98,6 +103,27 @@ export class AudioEngine {
     output.input = input;
     
     return output;
+  }
+
+  setReverbEnabled(enabled) {
+    if (!this.audioContext || !this.masterGain) {
+      console.warn('AudioEngine not initialized');
+      return;
+    }
+    
+    // Disconnect current routing
+    this.masterGain.disconnect();
+    
+    if (enabled && this.reverb) {
+      // Route through reverb
+      this.masterGain.connect(this.reverb.input);
+      this.reverb.connect(this.audioContext.destination);
+      console.log('Reverb enabled');
+    } else {
+      // Route directly to destination (bypass reverb)
+      this.masterGain.connect(this.audioContext.destination);
+      console.log('Reverb disabled');
+    }
   }
 
   async loadSample(url) {
@@ -177,7 +203,7 @@ export class AudioEngine {
     const existingInstances = Array.from(this.activeNotes.entries())
       .filter(([k, v]) => k.startsWith(key + '_'));
     
-    if (existingInstances.length >= 3) {
+    if (existingInstances.length >= 1) {
       // Remove the oldest instance with a gentle fade
       const [oldestKey, oldestData] = existingInstances[0];
       const now = this.audioContext.currentTime;

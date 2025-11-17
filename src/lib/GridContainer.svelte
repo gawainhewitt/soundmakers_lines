@@ -3,53 +3,83 @@
   import String from './String.svelte';
   import { ArpeggioGenerator } from './ArpeggioGenerator';
   
-  export let audioEngine;
-  
+  let { audioEngine, settings } = $props();
+
+
   let strings = Array.from({ length: 30 }, function(_, i) { return i; });
   let cleanupInterval;
   let arpeggioGenerator = new ArpeggioGenerator;
 
   // Track which strings are currently animating (for keyboard)
-  let animatingStrings = new Set();
+  let animatingStrings = $state(new Set());
   
   // Define the three rows with their colors and chord configs
-  const rows = [
-    { id: 0, color: 'rgb(240, 228, 66)', root: 'G', chordType: 'major', octave: 3 },   // yellow - G major
-    { id: 1, color: 'rgb(203, 121, 167)', root: 'F', chordType: 'major', octave: 3 },  // pink - F major
-    { id: 2, color: 'rgb(0, 158, 115)', root: 'C', chordType: 'major', octave: 3 }     // green - C major
-  ];
+  let rows = $derived(settings ? [
+    { 
+      id: 0, 
+      color: 'rgb(240, 228, 66)', 
+      ...settings.topRow,
+      visible: settings.topRow.visible 
+    },
+    { 
+      id: 1, 
+      color: 'rgb(204, 121, 167)', 
+      ...settings.middleRow,
+      visible: settings.middleRow.visible 
+    },
+    { 
+      id: 2, 
+      color: 'rgb(0, 158, 115)', 
+      ...settings.bottomRow,
+      visible: true // Bottom row always visible
+    }
+  ].filter(row => row.visible) : []); // Filter out hidden rows  
   
   const stringsPerRow = 10;
   
   // Generate scales for all three rows
-  let scales = [];
-  $: {
-    scales = rows.map(row => {
+  let scales = $derived(
+    rows.map(row => {
       return arpeggioGenerator.generateArpeggio(
         row.root, 
         row.chordType, 
         row.octave, 
         stringsPerRow
       );
-    });
+    })
+  );
+
+  // Log when scales change
+  $effect(() => {
     console.log('Generated arpeggios:', scales);
-  }
+  });
   
   // Map keyboard keys to string indices (30 total)
-  var keyMap = {
-    // Top row - G major
-    'q': 0, 'w': 1, 'e': 2, 'r': 3, 't': 4, 'y': 5, 'u': 6, 'i': 7, 'o': 8, 'p': 9,
-    // Middle row - F major  
-    'a': 10, 's': 11, 'd': 12, 'f': 13, 'g': 14, 'h': 15, 'j': 16, 'k': 17, 'l': 18, ';': 19,
-    // Bottom row - C major
-    'z': 20, 'x': 21, 'c': 22, 'v': 23, 'b': 24, 'n': 25, 'm': 26, ',': 27, '.': 28, '/': 29
-  };
+  let keyMap = $derived.by(() => {
+    // Dynamically assign keys based on visible rows
+    const map = {};
+    const keyRows = [
+      ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'],
+      ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';'],
+      ['z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/']
+    ];
+    
+    rows.forEach((row, rowIndex) => {
+      const keys = keyRows[rowIndex] || [];
+      keys.forEach((key, stringIndex) => {
+        const globalIndex = rowIndex * stringsPerRow + stringIndex;
+        map[key] = globalIndex;
+      });
+    });
+    
+    return map;
+  });
   
   // Track which keys are currently held down
-  let heldKeys = new Set();
+  let heldKeys = $state(new Set());
 
   // Track global drag state for strumming
-  let isDragging = false;
+  let isDragging = $state(false);
   
   onMount(() => {
     window.addEventListener('keydown', handleKeydown);
@@ -93,35 +123,32 @@ function handleKeydown(e) {
     }
     return;
   }
-  
+    
   var key = e.key.toLowerCase();
-    if (keyMap.hasOwnProperty(key)) {
-      // Prevent key repeat - only trigger on first press
-      if (heldKeys.has(key)) return;
-      heldKeys.add(key);
+  if (keyMap.hasOwnProperty(key)) {
+    if (heldKeys.has(key)) return;
+    heldKeys.add(key);
+    
+    var stringIndex = keyMap[key];
+    var rowIndex = Math.floor(stringIndex / stringsPerRow);
+    var stringInRow = stringIndex % stringsPerRow;
+    var stringId = rowIndex + '-' + stringInRow;
+    var note = scales[rowIndex][stringInRow]; // This now works with filtered rows
+    
+    if (audioEngine && note) {
+      audioEngine.playNote(note, stringId);
+      console.log('Key pressed:', key, '→', note);
       
-      var stringIndex = keyMap[key];
-      var rowIndex = Math.floor(stringIndex / stringsPerRow);
-      var stringInRow = stringIndex % stringsPerRow;
-      var stringId = rowIndex + '-' + stringInRow; // ADD THIS
-      var note = scales[rowIndex][stringInRow];
-      
-      if (audioEngine && note) {
-        audioEngine.playNote(note, stringId);
-        console.log('Key pressed:', key, '→', note);
-        
-        // ADD THESE LINES - trigger animation:
-        animatingStrings.add(stringId);
-        animatingStrings = animatingStrings; // Trigger reactivity
-        
-        // Remove from animating set after animation duration
-        setTimeout(() => {
-          animatingStrings.delete(stringId);
-          animatingStrings = animatingStrings; // Trigger reactivity
-        }, 300);
-      }
+      animatingStrings.add(stringId);
+      animatingStrings = new Set(animatingStrings); // Create new Set to trigger reactivity
+
+      setTimeout(() => {
+        animatingStrings.delete(stringId);
+        animatingStrings = new Set(animatingStrings); // Create new Set to trigger reactivity
+      }, 300);
     }
   }
+}
 
   function handleKeyup(e) {
     var key = e.key.toLowerCase();
@@ -147,6 +174,9 @@ function handleKeydown(e) {
 <div class="grid-container">
   {#each rows as row, rowIndex}
     <div class="row" style="background-color: {row.color};">
+        <div class="chord-label">
+          {row.root}{row.chordType === 'major' ? '' : row.chordType === 'minor' ? 'm' : row.chordType === 'dom7' ? '7' : row.chordType === 'maj7' ? '△' : 'm7'}
+        </div>
       {#each Array(stringsPerRow) as _, stringIndex}
         {@const globalIndex = rowIndex * stringsPerRow + stringIndex}
         {@const stringId = rowIndex + '-' + stringIndex}
@@ -180,5 +210,49 @@ function handleKeydown(e) {
     justify-content: space-evenly;
     align-items: center;
     padding: 0 2vw;
+    position: relative;
+  }
+
+  .chord-label {
+    position: absolute;
+    left: 1vw;
+    font-weight: 700;
+    font-size: 1.8rem;
+    color: rgba(0, 0, 0, 0.35);
+    pointer-events: none;
+    user-select: none;
+    line-height: 1;
+  }
+
+  @media (max-width: 480px) {
+    .chord-label {
+      font-size: 1.4rem;
+      left: 0.5vw;
+    }
+  }
+
+  @media (orientation: landscape) and (max-height: 500px) {
+    .chord-label {
+      font-size: 1.2rem;
+    }
+  }
+
+  /* Portrait mode - rotated text for all portrait orientations */
+  @media (orientation: portrait) {
+    .chord-label {
+      transform: rotate(-90deg);
+      transform-origin: left center;
+      font-size: 1.8rem;
+      left: 4vw;
+      top: 14vh;
+      white-space: nowrap;
+    }
+  }
+
+  /* Smaller font for mobile portrait */
+  @media (max-width: 480px) and (orientation: portrait) {
+    .chord-label {
+      font-size: 1.2rem;
+    }
   }
 </style>
