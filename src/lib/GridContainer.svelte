@@ -1,91 +1,71 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
-  import Line from './Line.svelte';
+  import String from './String.svelte';
   import { ScaleGenerator } from './ScaleGenerator.js';
   
   export let audioEngine;
-  export let scaleConfig = { key: 'C', scale: 'major', octave: 4 };
   
-  let lines = Array.from({ length: 9 }, function(_, i) { return i; });
-  let orientation = 'portrait';
+  let strings = Array.from({ length: 30 }, function(_, i) { return i; });
   let cleanupInterval;
   let scaleGenerator = new ScaleGenerator();
+
+  // Track which strings are currently animating (for keyboard)
+  let animatingStrings = new Set();
   
-  // Generate scale based on configuration
-  let scale = [];
+  // Define the three rows with their colors and scale configs
+  const rows = [
+    { id: 0, color: 'rgb(240, 228, 66)', key: 'G', scale: 'major', octave: 4 },   // yellow - G major
+    { id: 1, color: 'rgb(204, 121, 167)', key: 'F', scale: 'major', octave: 4 },  // pink - F major
+    { id: 2, color: 'rgb(0, 158, 115)', key: 'C', scale: 'major', octave: 4 }     // green - C major
+  ];
+  
+  const stringsPerRow = 10;
+  
+  // Generate scales for all three rows
+  let scales = [];
   $: {
-    scale = scaleGenerator.generateScale(
-      scaleConfig.key,
-      scaleConfig.scale,
-      scaleConfig.octave
-    );
-    console.log('Generated scale:', scale);
-    
-    // Reset line states when scale changes
-    resetLineStates();
+    scales = rows.map(row => {
+      // Generate scale spanning enough octaves to get 10 notes
+      var scale = scaleGenerator.generateScale(row.key, row.scale, row.octave);
+      // If we don't have enough notes, extend into next octave
+      if (scale.length < stringsPerRow) {
+        var nextOctaveScale = scaleGenerator.generateScale(row.key, row.scale, row.octave + 1);
+        scale = scale.concat(nextOctaveScale.slice(2));
+      }
+      return scale.slice(0, stringsPerRow);
+    });
+    console.log('Generated scales:', scales);
   }
   
-  // Map keyboard keys to line indices
+  // Map keyboard keys to string indices (30 total)
   var keyMap = {
-    'z': 0,
-    'x': 1,
-    'c': 2,
-    'v': 3,
-    'b': 4,
-    'n': 5,
-    'm': 6,
-    ',': 7,
-    '.': 8
+    // Top row - G major
+    'q': 0, 'w': 1, 'e': 2, 'r': 3, 't': 4, 'y': 5, 'u': 6, 'i': 7, 'o': 8, 'p': 9,
+    // Middle row - F major  
+    'a': 10, 's': 11, 'd': 12, 'f': 13, 'g': 14, 'h': 15, 'j': 16, 'k': 17, 'l': 18, ';': 19,
+    // Bottom row - C major
+    'z': 20, 'x': 21, 'c': 22, 'v': 23, 'b': 24, 'n': 25, 'm': 26, ',': 27, '.': 28, '/': 29
   };
   
-  // Track which lines are pressed
-  let lineStates = {};
-  
-  function resetLineStates() {
-    lineStates = {};
-    lines.forEach(function(_, i) {
-      if (scale[i]) {
-        lineStates[scale[i]] = false;
-      }
-    });
-  }
-  
-  // Track which keys are currently held down (prevent key repeat)
+  // Track which keys are currently held down
   let heldKeys = new Set();
+
+  // Track global drag state for strumming
+  let isDragging = false;
   
   onMount(() => {
-    // Initialize line states
-    resetLineStates();
-    
-    // Periodic cleanup - check for orphaned oscillators
-    cleanupInterval = setInterval(function() {
-      if (audioEngine) {
-        // First do smart cleanup based on line states
-        smartCleanup();
-        // Then do nuclear cleanup of any orphaned oscillators (passing line states)
-        audioEngine.cleanupOrphanedOscillators(lineStates);
-      }
-    }, 1000); // Check every 1 second
-    
-    // Add global panic button and keyboard handlers
     window.addEventListener('keydown', handleKeydown);
     window.addEventListener('keyup', handleKeyup);
-    
-    // Stop all notes when page loses focus or visibility
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('blur', handleWindowBlur);
   });
   
   onDestroy(() => {
-    if (cleanupInterval) {
-      clearInterval(cleanupInterval);
-    }
     window.removeEventListener('keydown', handleKeydown);
     window.removeEventListener('keyup', handleKeyup);
     document.removeEventListener('visibilitychange', handleVisibilityChange);
     window.removeEventListener('blur', handleWindowBlur);
     
-    // Panic on unmount
     if (audioEngine) {
       audioEngine.panic();
     }
@@ -95,163 +75,112 @@
     if (document.hidden && audioEngine) {
       console.log('Page hidden - stopping all notes');
       audioEngine.panic();
-      // Reset all line states
-      Object.keys(lineStates).forEach(function(note) {
-        lineStates[note] = false;
-      });
       heldKeys.clear();
     }
   }
-  
+
   function handleWindowBlur() {
     if (audioEngine) {
       console.log('Window blur - stopping all notes');
       audioEngine.panic();
-      // Reset all line states
-      Object.keys(lineStates).forEach(function(note) {
-        lineStates[note] = false;
-      });
       heldKeys.clear();
     }
   }
   
-  function smartCleanup() {
-    // Get all currently playing notes
-    var playingNotes = Array.from(audioEngine.activeOscillators.keys());
-    
-    // Stop any notes that are playing but their line is not pressed
-    playingNotes.forEach(function(note) {
-      if (!lineStates[note]) {
-        console.warn('Cleaning up stuck note:', note);
-        audioEngine.stopNote(note);
-      }
-    });
+function handleKeydown(e) {
+  if (e.key === 'Escape') {
+    if (audioEngine) {
+      audioEngine.panic();
+      heldKeys.clear();
+    }
+    return;
   }
   
-  function handleKeydown(e) {
-    // Press 'P' key to panic (stop all notes)
-    if (e.key === 'p' || e.key === 'P') {
-      if (audioEngine) {
-        audioEngine.panic();
-        // Reset all line states
-        Object.keys(lineStates).forEach(function(note) {
-          lineStates[note] = false;
-        });
-        heldKeys.clear();
-      }
-      return;
-    }
-    
-    // Handle instrument keys (zxcvbnm,.)
-    var key = e.key.toLowerCase();
+  var key = e.key.toLowerCase();
     if (keyMap.hasOwnProperty(key)) {
       // Prevent key repeat - only trigger on first press
       if (heldKeys.has(key)) return;
       heldKeys.add(key);
       
-      var lineIndex = keyMap[key];
-      var note = scale[lineIndex];
+      var stringIndex = keyMap[key];
+      var rowIndex = Math.floor(stringIndex / stringsPerRow);
+      var stringInRow = stringIndex % stringsPerRow;
+      var stringId = rowIndex + '-' + stringInRow; // ADD THIS
+      var note = scales[rowIndex][stringInRow];
       
-      // Trigger press
-      lineStates[note] = true;
-      if (audioEngine) {
+      if (audioEngine && note) {
         audioEngine.playNote(note);
+        console.log('Key pressed:', key, '→', note);
+        
+        // ADD THESE LINES - trigger animation:
+        animatingStrings.add(stringId);
+        animatingStrings = animatingStrings; // Trigger reactivity
+        
+        // Remove from animating set after animation duration
+        setTimeout(() => {
+          animatingStrings.delete(stringId);
+          animatingStrings = animatingStrings; // Trigger reactivity
+        }, 300);
       }
-      console.log('Key pressed:', key, '→', note);
     }
   }
-  
+
   function handleKeyup(e) {
     var key = e.key.toLowerCase();
     if (keyMap.hasOwnProperty(key)) {
       heldKeys.delete(key);
-      
-      var lineIndex = keyMap[key];
-      var note = scale[lineIndex];
-      
-      // Trigger release
-      lineStates[note] = false;
-      if (audioEngine) {
-        audioEngine.stopNote(note);
-      }
-      console.log('Key released:', key, '→', note);
     }
   }
   
-  async function initAudio() {
-    // Audio should already be initialized from splash screen
-    // But we can resume if suspended
-    if (audioEngine && audioEngine.audioContext && audioEngine.audioContext.state === 'suspended') {
-      await audioEngine.audioContext.resume();
-      console.log('Audio context resumed:', audioEngine.audioContext.state);
-    }
+  function handleGlobalMouseDown() {
+    isDragging = true;
   }
-  
-  function updateOrientation() {
-    orientation = window.innerHeight > window.innerWidth ? 'portrait' : 'landscape';
-  }
-  
-  $: {
-    if (typeof window !== 'undefined') {
-      updateOrientation();
-    }
-  }
-  
-  async function handlePress(event) {
-    await initAudio();
-    lineStates[event.detail.note] = true;
-    console.log('Line pressed:', event.detail.note);
-  }
-  
-  function handleRelease(event) {
-    lineStates[event.detail.note] = false;
-    console.log('Line released:', event.detail.note);
+
+  function handleGlobalMouseUp() {
+    isDragging = false;
   }
 </script>
 
-<svelte:window on:resize={updateOrientation} />
+<svelte:window 
+  on:mousedown={handleGlobalMouseDown}
+  on:mouseup={handleGlobalMouseUp}
+/>
 
-<div class="container {orientation}">
-  {#each lines as index}
-  <Line 
-      {index}
-      {orientation}
-      {audioEngine}
-      note={scale[index]}
-      color={index % 2 === 0 ? 'rgb(255, 255, 0)' : 'rgb(0, 0, 255)'}
-      activeColor="rgb(255, 0, 255)"
-      isPressed={lineStates[scale[index]]}
-      on:press={handlePress}
-      on:release={handleRelease}
-    />
+<div class="grid-container">
+  {#each rows as row, rowIndex}
+    <div class="row" style="background-color: {row.color};">
+      {#each Array(stringsPerRow) as _, stringIndex}
+        {@const globalIndex = rowIndex * stringsPerRow + stringIndex}
+        {@const stringId = rowIndex + '-' + stringIndex}
+        {@const note = scales[rowIndex][stringIndex]}
+        <String
+          index={globalIndex}
+          {stringId}
+          {note}
+          {audioEngine}
+          {isDragging}
+          isAnimating={animatingStrings.has(stringId)}
+        />
+      {/each}
+    </div>
   {/each}
 </div>
 
 <style>
-  .container {
-    display: grid;
-    gap: 2vh;
-    padding: 7vh 2vh 2vh 2vh;
-    height: 100%;
+  .grid-container {
     width: 100%;
-    place-items: center;
-    place-content: center;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
   }
 
-  @media (orientation: landscape) {
-  .container {
-    max-width: 100vh; /* or whatever value works */
-    margin: 0 auto;
-  }
-}
-  
-  .container.portrait {
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(3, 1fr);
-  }
-  
-  .container.landscape {
-    grid-template-columns: repeat(3, 1fr);
-    grid-template-rows: repeat(3, 1fr);
+  .row {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-evenly;
+    align-items: center;
+    padding: 0 2vw;
   }
 </style>

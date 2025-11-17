@@ -17,22 +17,26 @@ export class AudioEngine {
       await Tone.start();
       console.log('Tone.js started, audio context state:', Tone.context.state);
       
-      // Create sampler with horn samples
+      // Create sampler with harp samples
       this.sampler = new Tone.Sampler({
         urls: {
-          B2: "horn-tone-b2-optimized.mp3",
-          C3: "horn-tone-c3-optimized.mp3",
-          E3: "horn-tone-e3-optimized.mp3",
-          G3: "horn-tone-g3-optimized.mp3",
-          A3: "horn-tone-a3-optimized.mp3",
-          C4: "horn-tone-c4-optimized.mp3"
+          C4: "Harp-C4.mp3"
         },
         baseUrl: "/sounds/",
         release: 8,
+        volume: -6,
         onload: () => {
           console.log('Sampler loaded successfully');
         }
       }).toDestination();
+
+      // this.reverb = new Tone.Reverb({
+      //   decay: 3,
+      //   predelay: 0,
+      //   wet: 0.5
+      // }).toDestination();
+
+      // this.sampler.connect(this.reverb);
       
       this.initialized = true;
       console.log('AudioEngine initialized with Tone.js');
