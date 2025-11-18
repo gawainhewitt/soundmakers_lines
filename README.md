@@ -1,51 +1,62 @@
-# Lines - Musical Touch Interface
+# Lines - Harp-Style Touch Interface
 
-A responsive web-based musical instrument that transforms your screen into a playable 3x3 grid of lines. Each line plays a note from a configurable musical scale, creating an intuitive and accessible way to make music through touch, mouse, or keyboard.
+A responsive web-based harp-like instrument that transforms your screen into playable vertical strings arranged in three colorful rows. Each string plays a note from a configurable chord arpeggio, creating an intuitive and accessible way to make music through touch, mouse, or keyboard.
 
 ## Features
 
-- **Multi-Scale Support**: Choose from Major, Minor, Pentatonic, Major Blues, and Minor Blues scales
-- **12 Keys**: Play in any key from C to B
-- **5 Octave Range**: Select octaves 1-5 to match your preferred pitch range
+- **Chord-Based Arpeggios**: Choose from Major, Minor, Dom7, Maj7, and Min7 chord types
+- **12 Root Notes**: Play in any key from C to B
+- **Configurable Rows**: Each of the three rows can be independently configured with different chords
+- **Two Octave Ranges**: Select low (octave 2) or high (octave 3) range for each row
+- **Row Visibility**: Toggle the top and middle rows on/off to create 2-row or 3-row layouts
+- **Reverb Effect**: Built-in reverb that can be toggled on/off
 - **Responsive Design**: Adapts seamlessly to portrait and landscape orientations
 - **Multiple Input Methods**:
   - Touch/tap on mobile devices
-  - Mouse clicks on desktop
-  - Keyboard controls (Z, X, C, V, B, N, M, comma, period)
-- **iOS 9+ Compatible**: Extensively tested and optimized for older iOS devices
-- **Persistent Settings**: Your scale, key, and octave preferences are saved locally
+  - Mouse clicks and drag/strum on desktop
+  - Full QWERTY keyboard support (30 keys for 30 strings)
+- **iOS 12+ Compatible**: Extensively tested and optimized for older iOS devices
+- **Persistent Settings**: Your chord, key, octave, and reverb preferences are saved locally
 
 ## Usage
 
-### 1. **Launch**: Click/tap anywhere on the splash screen to begin or press any key on the keyboard. 
+### 1. **Launch**: Click/tap anywhere on the splash screen to begin or press any key on the keyboard.
 
 ![Splash Screen](docs/images/splash-screen.png)
 
 ### 2. **Play**: 
-   - Touch or click the lines to play notes
-   - Use keyboard keys (Z-X-C-V-B-N-M-,- .) for the 9 lines
-   - Press 'P' key for panic stop (stops all notes)
+   - Touch or click individual strings to play notes
+   - Drag across strings to strum
+   - Use QWERTY keyboard keys for the 30 strings (3 rows of 10)
+   - Press 'Escape' key for panic stop (stops all notes)
 
 ![App Screenshot](docs/images/app-screenshot.png)
 
 ![Keyboard Layout](docs/images/keyboard-layout.png)
-*Keyboard mapping for the 9 lines*
+*Keyboard mapping for the 30 strings across three rows*
 
-3. **Configure**: 
-   - Tap the settings icon (⚙️) to change key, scale, or octave
+**Keyboard Layout:**
+- **Top Row**: Q W E R T Y U I O P
+- **Middle Row**: A S D F G H J K L ;
+- **Bottom Row**: Z X C V B N M , . /
+
+### 3. **Configure**: 
+   - Tap the settings icon (⚙️) to customize each row's chord, root note, and octave range
+   - Toggle row visibility to create different layouts
+   - Enable or disable reverb effect
    - Tap the info icon (ℹ️) to view instructions again
 
 ![Options Screen](docs/images/options-screen.png)
 
-
-
 ## How It Works
 
-The app uses the Web Audio API to play recorded sounds in real-time. Each line in the grid corresponds to a note in your selected scale, arranged from low to high (left to right, top to bottom).
+The app uses the Web Audio API to play a sampled harp note pitch-shifted in real-time. Each string corresponds to a note in a chord arpeggio, arranged from low to high across each row.
 
-**Audio Engine**: Employs a sampler to play recordings of a french horn
+**Audio Engine**: Employs a sampler-based approach with a single harp sample (C4) that is pitch-shifted to generate all notes. Includes a custom reverb effect built from multiple delay lines.
 
-**Scale Generation**: Dynamically generates 9 notes based on your selected key, scale type, and starting octave using chromatic intervals.
+**Arpeggio Generation**: Dynamically generates 10-note arpeggios for each row based on the selected root note, chord type, and starting octave. The arpeggio cycles through chord tones across multiple octaves.
+
+## Development
 
 ### Prerequisites
 
@@ -57,7 +68,7 @@ The app uses the Web Audio API to play recorded sounds in real-time. Each line i
 ```bash
 # Clone the repository
 git clone https://github.com/gawainhewitt/soundmakers_lines.git
-cd lines
+cd soundmakers_lines
 
 # Install dependencies
 npm install
@@ -98,13 +109,15 @@ The app will be available at your local IP address (e.g., `http://192.168.1.x:30
 
 ## iOS Compatibility Notes
 
-This app has been carefully optimized for iOS 9+ devices:
+This app has been carefully optimized for iOS 12+ devices:
 
 - **Polyfills**: Core-js and regenerator-runtime ensure ES6+ features work on older browsers
-- **Audio Unlocking**: Implements iOS-specific audio context initialization
-- **Touch Handling**: Advanced touch tracking prevents stuck notes and handles multi-touch scenarios
+- **Audio Unlocking**: Implements iOS-specific audio context initialization on user interaction
+- **Touch Handling**: Advanced touch tracking with global touch move detection for smooth strumming
+- **Sample-Based Audio**: Uses Web Audio API with pitch-shifting for better performance than synthesizers on older devices
 - **Viewport Management**: Comprehensive fixes for iOS viewport issues when switching apps
 - **Zoom Prevention**: Disables pinch-zoom and double-tap-zoom for a native app feel
+- **Optimized Audio**: 96 kbps mono audio file for improved loading and playback on older hardware
 
 ## Project Structure
 
@@ -114,17 +127,19 @@ This app has been carefully optimized for iOS 9+ devices:
 │   ├── main.js                 # Entry point with iOS fixes
 │   ├── app.css                 # Global styles
 │   └── lib/
-│       ├── AudioEngine.js      # Web Audio API sound generation
-│       ├── Line.svelte       # Individual playable line
-│       ├── GridContainer.svelte # 3x3 grid layout & event handling
+│       ├── AudioEngine.js      # Web Audio API sampler with reverb
+│       ├── String.svelte       # Individual playable string component
+│       ├── GridContainer.svelte # 3-row layout & event handling
 │       ├── OptionsScreen.svelte # Settings interface
-│       ├── ScaleGenerator.js   # Musical scale generation logic
+│       ├── ArpeggioGenerator.js # Musical arpeggio generation logic
 │       ├── SplashScreen.svelte # Welcome/instructions screen
 │       ├── IconButton.svelte   # Reusable icon button component
-│       └── ResponsiveContainer.svelte # Orientation handling
+│       ├── ResponsiveContainer.svelte # Orientation handling
+│       └── ScaleGenerator.js   # (Legacy - not used in current version)
 ├── public/
 │   ├── images/                 # Logos and icons
-│   └── polyfills/              # iOS 9+ compatibility scripts
+│   ├── sounds/                 # Harp sample audio file
+│   └── polyfills/              # iOS 12+ compatibility scripts
 └── index.html                  # Entry HTML with polyfill loading
 ```
 
@@ -134,12 +149,12 @@ This app has been carefully optimized for iOS 9+ devices:
 graph TD
     A[App.svelte<br/>Screen Router & State Manager] --> B[SplashScreen.svelte<br/>Welcome & Audio Init]
     A --> C[OptionsScreen.svelte<br/>Settings Interface]
-    A --> D[GridContainer.svelte<br/>3x3 Grid & Event Handler]
+    A --> D[GridContainer.svelte<br/>3-Row Layout & Event Handler]
     A --> E[IconButton.svelte<br/>Info & Settings Buttons]
     
-    D --> G[AudioEngine.js<br/>Web Audio Synthesis]
-    D --> H[ScaleGenerator.js<br/>Musical Scale Logic]
-    D --> F[Line.svelte ×9<br/>Interactive Note Buttons]
+    D --> G[AudioEngine.js<br/>Web Audio Sampler + Reverb]
+    D --> H[ArpeggioGenerator.js<br/>Chord Arpeggio Logic]
+    D --> F[String.svelte ×30<br/>Interactive String Components]
 
     
     C --> H
@@ -161,17 +176,26 @@ graph TD
 
 - **Svelte 5**: Modern, reactive UI framework
 - **Vite**: Fast build tool and dev server
-- **Web Audio API**: Real-time audio synthesis
+- **Web Audio API**: Real-time audio playback and processing
 - **Vite Legacy Plugin**: Automatic transpilation and polyfills for older browsers
 
 ### Design Decisions
 
 **Static Site Delivery**: This app is built as a static site (vanilla Vite + Svelte) rather than using SvelteKit. This architectural choice provides:
 
-- **Maximum Compatibility**: Works seamlessly on older devices and browsers (iOS 9+)
+- **Maximum Compatibility**: Works seamlessly on older devices and browsers (iOS 12+)
 - **Lightweight Bundle**: Minimal JavaScript footprint for faster loading on slower devices
 - **Simple Deployment**: Can be deployed to any static hosting service without server-side requirements
 - **Reduced Complexity**: No SSR overhead or routing complexity for a single-page application
+
+**Sampler-Based Audio**: The app uses a single harp sample (C4) and pitch-shifts it in real-time rather than using oscillator-based synthesis or loading 30 separate samples. This approach:
+
+- **Reduces Memory Usage**: Only one audio file needs to be loaded
+- **Faster Initial Load**: Significantly reduces network transfer time
+- **Better iOS 12 Performance**: Simpler audio graph performs better on older devices
+- **Authentic Timbre**: Maintains the natural harp sound quality across all pitches
+
+**Time-Based Retrigger Prevention**: Strings use time-based checks rather than boolean flags to prevent rapid retriggering, allowing smooth strumming while avoiding audio buildup.
 
 This approach prioritizes accessibility and performance, ensuring the app works reliably across the widest possible range of devices and network conditions.
 
@@ -179,9 +203,11 @@ This approach prioritizes accessibility and performance, ensuring the app works 
 
 **No sound on iOS**: Ensure silent mode is turned off. The audio context requires an initial user interaction (handled by the splash screen).
 
-**Stuck notes**: Press the 'P' key to trigger panic stop, or use the window blur detection which automatically stops all notes when switching apps.
+**Stuck notes**: Press the 'Escape' key to trigger panic stop, or use the window blur detection which automatically stops all notes when switching apps.
 
 **Layout issues after app switching**: The app includes comprehensive viewport reset logic that should handle this automatically.
+
+**Strings not responding to strum**: Ensure you're dragging continuously. The app tracks touch/mouse movement globally and triggers strings as your pointer crosses them.
 
 ## Contributing
 
