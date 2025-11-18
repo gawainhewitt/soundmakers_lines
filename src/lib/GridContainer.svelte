@@ -201,6 +201,8 @@ function handleKeydown(e) {
     display: flex;
     flex-direction: column;
     gap: 0;
+    border-radius: 20px;
+    overflow: hidden;
   }
 
   .row {
