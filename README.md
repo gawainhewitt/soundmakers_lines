@@ -1,4 +1,4 @@
-# Lines - Harp-Style Touch Interface
+# Patterns - Harp-Style Touch Interface
 
 A responsive web-based harp-like instrument that transforms your screen into playable vertical strings arranged in three colorful rows. Each string plays a note from a configurable chord arpeggio, creating an intuitive and accessible way to make music through touch, mouse, or keyboard.
 
@@ -52,7 +52,7 @@ A responsive web-based harp-like instrument that transforms your screen into pla
 
 The app uses the Web Audio API to play a sampled harp note pitch-shifted in real-time. Each string corresponds to a note in a chord arpeggio, arranged from low to high across each row.
 
-**Audio Engine**: Employs a sampler-based approach with a single harp sample (C4) that is pitch-shifted to generate all notes. Includes a custom reverb effect built from multiple delay lines.
+**Audio Engine**: Employs a sampler-based approach with a single harp sample (C4) that is pitch-shifted to generate all notes. Includes a custom reverb effect built from multiple delay patterns.
 
 **Arpeggio Generation**: Dynamically generates 10-note arpeggios for each row based on the selected root note, chord type, and starting octave. The arpeggio cycles through chord tones across multiple octaves.
 
@@ -67,8 +67,8 @@ The app uses the Web Audio API to play a sampled harp note pitch-shifted in real
 
 ```bash
 # Clone the repository
-git clone https://github.com/gawainhewitt/soundmakers_lines.git
-cd soundmakers_lines
+git clone https://github.com/gawainhewitt/soundmakers_patterns.git
+cd soundmakers_patterns
 
 # Install dependencies
 npm install
