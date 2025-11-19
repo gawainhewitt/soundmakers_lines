@@ -1,22 +1,21 @@
 <script>
   import { onMount } from 'svelte';
   import ResponsiveContainer from './lib/ResponsiveContainer.svelte';
-  import SequencerGrid from './lib/SequencerGrid.svelte';
+  import GridContainer from './lib/GridContainer.svelte';
   import SplashScreen from './lib/SplashScreen.svelte';
   import IconButton from './lib/IconButton.svelte';
   import OptionsScreen from './lib/OptionsScreen.svelte';
   import { AudioEngine } from './lib/AudioEngine.js';
 
-  let currentScreen = $state('home'); // 'home', 'sequencer', 'about', 'options'
-  let sequencerMode = $state('full'); // 'full' or 'keyboard'
+  let currentScreen = $state('splash'); // 'splash', 'play', 'about', 'options'
   let audioEngine = $state(null);
   let audioInitialized = false;
 
-  // Settings for the sequencer
+  // Settings for the harp
   let settings = $state(loadSavedSettings());
 
   function loadSavedSettings() {
-    const saved = localStorage.getItem('patterns-settings');
+    const saved = localStorage.getItem('harp-settings');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -29,10 +28,9 @@
     
     // Return defaults if nothing saved
     return {
-      key: 'C',
-      scale: 'major',
-      octave: 2,
-      bpm: 99,
+      topRow: { root: 'G', chordType: 'major', octave: 3, visible: true },
+      middleRow: { root: 'F', chordType: 'major', octave: 3, visible: true },
+      bottomRow: { root: 'C', chordType: 'major', octave: 3 },
       reverb: true
     };
   }
@@ -42,38 +40,32 @@
     audioEngine = new AudioEngine();
   });
 
-  function handleModeSelect(event) {
-    const { mode } = event.detail;
-    sequencerMode = mode;
-    console.log('Mode selected:', mode);
-    handleSequencerStart();
+  async function handleSplashClick() {
+  document.body.style.setProperty('background-color', 'rgb(86, 180, 233)', 'important');
+  
+  // Initialize audio context on user interaction (required for iOS)
+  if (audioEngine && !audioInitialized) {
+    await audioEngine.init();
+    audioInitialized = true;
+    console.log('Audio initialized from splash screen');
   }
+  
+  // Show play screen
+  currentScreen = 'play';
+  console.log('Current screen set to:', currentScreen);
 
-  async function handleSequencerStart() {
-    document.body.style.setProperty('background-color', 'rgb(86, 180, 233)', 'important');
-    
-    // Initialize audio context on user interaction (required for iOS)
-    if (audioEngine && !audioInitialized) {
-      await audioEngine.init();
-      audioInitialized = true;
-      console.log('Audio initialized');
-    }
-    
-    // Show sequencer screen
-    currentScreen = 'sequencer';
-    console.log('Current screen set to:', currentScreen);
-    
-    // CHROME iOS FIX: Wait for layout to settle after transition
-    setTimeout(() => {
-      window.scrollTo(0, 0);
-      const vh = window.innerHeight * 0.01;
-      document.documentElement.style.setProperty('--vh', `${vh}px`);
-      window.dispatchEvent(new Event('resize'));
-    }, 100);
-  }
+  
+  // CHROME iOS FIX: Wait for layout to settle after transition
+  setTimeout(() => {
+    window.scrollTo(0, 0);
+    const vh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--vh', `${vh}px`);
+    window.dispatchEvent(new Event('resize'));
+  }, 100);
+}
 
   function gracefullyStopAllNotes() {
-    // Placeholder for when we add audio in Phase 2
+    // Get all active notes and stop them gracefully (with release envelope)
     if (audioEngine && audioEngine.activeOscillators) {
       var activeNotes = Array.from(audioEngine.activeOscillators.keys());
       activeNotes.forEach(function(note) {
@@ -97,7 +89,7 @@
 
   function handleAboutClose() {
     document.body.style.setProperty('background-color', 'rgb(86, 180, 233)', 'important');
-    currentScreen = 'sequencer';
+    currentScreen = 'play';
 
     // CHROME iOS FIX: Wait for layout to settle after transition
     setTimeout(() => {
@@ -106,12 +98,6 @@
       document.documentElement.style.setProperty('--vh', `${vh}px`);
       window.dispatchEvent(new Event('resize'));
     }, 100);
-  }
-  
-  function handleHomeClick() {
-    gracefullyStopAllNotes();
-    document.body.style.setProperty('background-color', 'white', 'important');
-    currentScreen = 'home';
   }
 
   function handleSettingsUpdate(event) {
@@ -122,14 +108,11 @@
     if (audioEngine) {
       audioEngine.setReverbEnabled(settings.reverb);
     }
-    
-    // Save to localStorage
-    localStorage.setItem('patterns-settings', JSON.stringify(settings));
   }
 
   function closeOptions() {
     document.body.style.setProperty('background-color', 'rgb(86, 180, 233)', 'important');
-    currentScreen = 'sequencer';
+    currentScreen = 'play';
     
     // CHROME iOS FIX: Wait for layout to settle after transition
     setTimeout(() => {
@@ -141,36 +124,26 @@
   }
 </script>
 
-{#if currentScreen === 'home'}
-  <div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: white; z-index: 9999;">
-    <ResponsiveContainer>
-      <SplashScreen 
-        title="Patterns"
-        instructions="Create musical patterns by clicking steps to activate them, then press play to hear your sequence loop."
-        footerNote="On Apple devices, turn off silent mode"
-        showModeButtons={true}
-        on:selectMode={handleModeSelect}
-      />
-    </ResponsiveContainer>
-  </div>
+{#if currentScreen === 'splash'}
+  <SplashScreen 
+    title="Lines"
+    instructions="To play: touch or click screen or use computer keyboard keys"
+    footerNote="On Apple devices, turn off silent mode"
+    on:click={handleSplashClick}
+  />
 {:else if currentScreen === 'about'}
-  <div style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: white; z-index: 9999;">
-    <ResponsiveContainer>
-      <SplashScreen 
-        title="Patterns"
-        instructions="Create musical patterns by clicking steps to activate them, then press play to hear your sequence loop."
-        footerNote="On Apple devices, turn off silent mode"
-        showModeButtons={false}
-        on:click={handleAboutClose}
-      />
-    </ResponsiveContainer>
-  </div>
+  <SplashScreen 
+    title="Lines"
+    instructions="To play: touch or click screen or use computer keyboard keys"
+    footerNote="On Apple devices, turn off silent mode"
+    on:click={handleAboutClose}
+  />
 {:else if currentScreen === 'options'}
   <OptionsScreen 
       on:updateSettings={handleSettingsUpdate}
       on:close={closeOptions} 
   />
-{:else if currentScreen === 'sequencer'}
+{:else if currentScreen === 'play'}
   <!-- Icon buttons positioned in top corners -->
   <div style="position: fixed; top: 20px; left: 20px; z-index: 1000;">
     <IconButton 
@@ -180,7 +153,7 @@
     />
   </div>
   
-  <div style="position: fixed; top: 20px; right: 20px; z-index: 1000;">
+  <div style="position: fixed; top: 20px; right: 65px; z-index: 1000;">
     <IconButton 
       type="settings" 
       ariaLabel="Options"
@@ -190,8 +163,8 @@
 
   <main>
     <ResponsiveContainer>
-      <SequencerGrid 
-        mode={sequencerMode}
+      <GridContainer 
+        {audioEngine} 
         {settings}
       />
     </ResponsiveContainer>
